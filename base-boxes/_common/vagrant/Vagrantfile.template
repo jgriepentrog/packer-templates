@@ -1,0 +1,25 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+Vagrant.require_version ">= 2.0.0"
+  config.vm.provider "virtualbox" do |vb|
+    ## Display the VirtualBox GUI when booting the machine ##
+    vb.gui = true
+  
+    ## Customize resources ##
+    # Set resources to be fairly miminal, but enough for a basic machine
+    vb.cpus = 2
+    vb.memory = 4096
+    vb.customize ["modifyvm", :id, "--vram", 32]
+
+    # Enable audio by default
+    vb.customize ["modifyvm", :id, "--audioout", "on"]
+
+    # Enable bidrectional clipboard for easy of use
+    vb.customize ["modifyvm", :id, "--clipboard-mode", "bidirectional"]
+
+    # Disable VRDP by default as this is an extension and not needed for base use
+    vb.customize ["modifyvm", :id, "--vrde", "off"]
+  end
+end
