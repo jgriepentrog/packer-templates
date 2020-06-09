@@ -1,3 +1,5 @@
+#!/bin/bash
 set -o pipefail
 
-packer build base-boxes/ubuntu-budgie/template.pkr.hcl
+./buildBase.sh
+./buildPersonal.sh

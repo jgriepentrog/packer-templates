@@ -1,1 +1,2 @@
-packer build base-boxes/ubuntu-budgie/template.pkr.hcl
+.\buildBase.ps1
+.\buildPersonal.ps1
