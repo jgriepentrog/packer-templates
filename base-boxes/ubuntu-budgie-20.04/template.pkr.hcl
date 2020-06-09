@@ -6,31 +6,68 @@ variable "timezone" {
   default = "US/Central"
 }
 
-variable "ubuntu-version" {
+variable "os" {
+  default = "Ubuntu"
+}
+
+variable "os-variant" {
+  default = "Budgie"
+}
+
+variable "os-bits" {
+  default = "64"
+}
+
+variable "os-version" {
   default = "20.04"
 }
 
+variable "os-patch-version" {
+  default = "0"
+}
+
+variable "box-version" {
+  default = "1.0.0"
+}
+
+variable "username" {
+  default = "vagrant"
+}
+
+variable "password" {
+  default = "vagrant"
+}
+
+variable "organization" {
+  default = "jgriepentrog"
+}
+
+variable "headless" {
+  default = false
+}
 
 locals {
-  # User/name password per Base Box reqs
-  username = "vagrant"
-  password = "vagrant"
-  # Headless install; set false when troubleshooting
-  headless = false
-  sudo_cmd = "echo '${local.password}' | sudo -S -E"
+  sudo-cmd = "echo '${var.password}' | sudo -S -E"
+  iso-base-path = "http://cdimage.ubuntu.com/ubuntu-budgie/releases"
+  os-full-name = "${lower(var.os)}${var.os-variant == "" ? "" : "-${lower(var.os-variant)}"}"
+  os-full-version = "${var.os-version}${var.os-patch-version == "0" || var.os-patch-version == "" ? "" : ".${var.os-patch-version}"}"
+  os-name-version = "${local.os-full-name}-${var.os-version}"
+  iso-release-path = "${local.iso-base-path}/${local.os-full-version}/release"
+  iso-name = "${local.os-full-name}-${local.os-full-version}-desktop-amd64.iso"
+  vm-name = "${local.os-name-version}-${var.box-version}"
 }
 
 source "virtualbox-iso" "vbox" {
   ### VM Options ###
   disk_size = 40000
   guest_additions_mode = "disable"
-  guest_os_type = "Ubuntu_64"
+  guest_os_type = "${var.os}${var.os-bits == "64" ? "_64" : ""}"
   hard_drive_discard = true
   hard_drive_interface = "sata"
   sata_port_count = 2
   hard_drive_nonrotational = true
   iso_interface = "sata"
-  vm_name = "UbuntuBudgie-${var.ubuntu-version}"
+  vm_name = local.vm-name
   cpus = 4
   memory = 8192
   vboxmanage = [
@@ -43,24 +80,25 @@ source "virtualbox-iso" "vbox" {
     [ "modifyvm", "{{.Name}}", "--graphicscontroller", "vmsvga" ],
     [ "modifyvm", "{{.Name}}", "--vram", "32" ],
     [ "modifyvm", "{{.Name}}", "--vrde", "off" ],
+    [ "modifyvm", "{{.Name}}", "--nictype1", "virtio" ],
     [ "storagectl", "{{.Name}}", "--name", "IDE Controller", "--remove" ],
   ]
   ### ISO Options ###
-  iso_url = "http://cdimage.ubuntu.com/ubuntu-budgie/releases/${var.ubuntu-version}/release/ubuntu-budgie-${var.ubuntu-version}-desktop-amd64.iso"
+  iso_url = "${local.iso-release-path}/${local.iso-name}"
   iso_checksum_type = "sha256"
-  iso_checksum_url = "http://cdimage.ubuntu.com/ubuntu-budgie/releases/${var.ubuntu-version}/release/SHA256SUMS"
+  iso_checksum_url = "${local.iso-release-path}/SHA256SUMS"
   ### HTTP Server Options ###
-  http_directory = "base-boxes/_common/ubuntu/http"
+  http_directory = "base-boxes/_common/${lower(var.os)}/http"
   ### Export Options ###
   format = "ovf"
   ### Run Options ###
-  headless = "${local.headless}"
+  headless = "${var.headless}"
   ### Shutdown Options ###
-  shutdown_command = "${local.sudo_cmd} shutdown -P now"
+  shutdown_command = "${local.sudo-cmd} shutdown -P now"
   ### Communicator Options ###
   communicator = "ssh"
-  ssh_username = "${local.username}"
-  ssh_password = "${local.password}"
+  ssh_username = "${var.username}"
+  ssh_password = "${var.password}"
   ssh_timeout = "90m"
   #pause_before_connecting = "10m"
   ### Boot Options ###
@@ -87,13 +125,13 @@ source "virtualbox-iso" "vbox" {
     " time/zone=${var.timezone}",
     ## Set up user ##
     " passwd/root-login=true", # Per base box requirements
-    " passwd/root-password=${local.password}", # Per base box requirements
-    " passwd/root-password-again=${local.password}", # Per base box requirements
+    " passwd/root-password=${var.password}", # Per base box requirements
+    " passwd/root-password-again=${var.password}", # Per base box requirements
     " user-setup/allow-password-weak=true", # Default Vagrant password is weak
-    " passwd/user-fullname=${local.username}", 
-    " passwd/username=${local.username}",
-    " passwd/user-password=${local.password}", 
-    " passwd/user-password-again=${local.password}",
+    " passwd/user-fullname=${var.username}", 
+    " passwd/username=${var.username}",
+    " passwd/user-password=${var.password}", 
+    " passwd/user-password-again=${var.password}",
     " url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/preseed.cfg",
     " --- <wait>",
     "<enter><wait>"
@@ -106,17 +144,24 @@ build {
     "source.virtualbox-iso.vbox"
   ]
 
-  # Get latest packages and clean up unused ones
+  provisioner "shell-local" {
+    inline = [
+      "vagrant cloud box create ${var.organization}/${local.os-name-version} --description '${var.os} ${var.os-variant == "" ? "" : "${var.os-variant} "}${local.os-full-version} Minimal Base Box'"
+    ]
+    valid_exit_codes = [0,1] # Error code is 1 if box already exists
+  }
+
+  # Get latest packages, install a few common dependencies (e.g. build-essential), and clean up unused ones
   provisioner "shell" {
-    execute_command = "${local.sudo_cmd} bash '{{ .Path }}'"
+    execute_command = "${local.sudo-cmd} bash '{{ .Path }}'"
     scripts = [
-      "base-boxes/_common/ubuntu/updatePkgs.sh"
+      "base-boxes/_common/ubuntu/updateInstallPkgs.sh"
     ]
   }
 
   # Install Virtualbox guest additions
   provisioner "shell" {
-    execute_command = "${local.sudo_cmd} bash '{{ .Path }}'"
+    execute_command = "${local.sudo-cmd} bash '{{ .Path }}'"
     scripts = [
       "base-boxes/_common/virtualbox/virtualbox-guest-additions-install.sh"
     ]
@@ -128,7 +173,7 @@ build {
 
   # Set up VM to meet Vagrant base box requirements
   provisioner "shell" {
-    execute_command = "${local.sudo_cmd} bash '{{ .Path }}'"
+    execute_command = "${local.sudo-cmd} bash '{{ .Path }}'"
     scripts = [
       "base-boxes/_common/vagrant/vagrant.sh"
     ]
@@ -137,12 +182,14 @@ build {
   # Build the Vagrant base box
   post-processor "vagrant" {
     compression_level = 9
-    output = "UbuntuBudgie-${var.ubuntu-version}.box"
+    output = "${local.vm-name}.box"
     vagrantfile_template = "base-boxes/_common/vagrant/Vagrantfile.template"
   }
 
   post-processor "vagrant-cloud" {
-    box_tag = "jgriepentrog/ubuntu-budgie"
-    version = var.ubuntu-version
+    #keep_input_artifact = false
+    box_tag = "${var.organization}/${local.os-name-version}"
+    version = var.box-version
+    version_description = "See CHANGELOG at https://github.com/jgriepentrog/packer-templates"
   }
 }
