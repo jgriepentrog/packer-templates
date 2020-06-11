@@ -164,10 +164,9 @@ build {
     scripts = [
       "base-boxes/_common/virtualbox/virtualbox-guest-additions-install.sh"
     ]
-    ##!## Pending Packer HCL2 support - https://github.com/hashicorp/packer/issues/9094 ##!##
-    #only = [
-    #  "virtualbox-iso"
-    #]
+    only = [
+      "virtualbox-iso"
+    ]
   }
 
   # Set up VM to meet Vagrant base box requirements
