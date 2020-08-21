@@ -5,4 +5,4 @@ if ($Env:VAGRANT_CLOUD_TOKEN -eq $null) {
   throw "Need to set VAGRANT_CLOUD_TOKEN"
 }
 
-packer build personal-boxes/$($OS)-dev-$($OS_VER)/template.pkr.hcl
+packer build --force personal-boxes/$($OS)-dev-$($OS_VER)/template.pkr.hcl

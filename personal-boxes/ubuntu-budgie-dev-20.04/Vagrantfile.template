@@ -1,0 +1,101 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+require 'io/console'
+
+vagrant_arg = ARGV[0]
+
+user_password = ""
+sharing_link = ""
+sharing_password = ""
+sharing_password = ""
+
+if vagrant_arg == 'up'
+    print "Please provide the user password: "
+    user_password = STDIN.noecho(&:gets).chomp
+	puts ""
+  
+    print "Please provide the OneDrive sharing link: "
+    sharing_link = STDIN.noecho(&:gets).chomp
+	puts ""
+  
+    print "Please provide the OneDrive sharing password: "
+    sharing_password = STDIN.noecho(&:gets).chomp
+	puts ""
+end
+
+Vagrant.configure("2") do |config|
+Vagrant.require_version ">= 2.0.0"
+  user_name = "john"
+
+  config.ssh.username = "root"
+  config.ssh.password = "vagrant"
+
+  config.vm.hostname = "tuxdev-ubuntu-budgie-20-04"
+
+  # VM customizations
+  config.vm.provider "virtualbox" do |vb|
+
+    ## Display the VirtualBox GUI when booting the machine ##
+    vb.gui = true
+  
+    ## Resources and settings ##
+
+    # VM name
+    vb.name = "TuxDev [Ubuntu Budgie 20.04]"
+
+    # Base resources
+    vb.cpus = 4
+    vb.memory = 8192
+
+    # Base system/hardware settings
+    vb.customize ["modifyvm", :id, "--acpi", "on"]
+    vb.customize ["modifyvm", :id, "--rtcuseutc", "on"]
+    vb.customize ["modifyvm", :id, "--apic", "on"]
+    vb.customize ["modifyvm", :id, "--pae", "on"]
+    vb.customize ["modifyvm", :id, "--hwvirtex", "on"]
+    vb.customize ["modifyvm", :id, "--nestedpaging", "on"]
+    vb.customize ["modifyvm", :id, "--largepages", "on"]
+    vb.customize ["modifyvm", :id, "--paravirtprovider", "kvm"]
+
+    # Graphics settings
+    vb.customize ["modifyvm", :id, "--vram", 128]
+    vb.customize ["modifyvm", :id, "--graphicscontroller", "vmsvga"]
+    vb.customize ["modifyvm", :id, "--accelerate3d", "on"]
+    vb.customize ["modifyvm", :id, "--monitorcount", 2]
+
+    # Network settings
+    #vb.customize ["modifyvm", :id, "--nic1", "bridged"]
+    #vb.customize ["modifyvm", :id, "--bridgeadapter1", "Marvell Yukon 88E8056 PCI-E Gigabit Ethernet Controller"]
+    vb.customize ["modifyvm", :id, "--nictype1", "virtio"]
+
+    # Audio settings
+    vb.customize ["modifyvm", :id, "--audio", "none"]
+
+    # Remote access settings
+    vb.customize ["modifyvm", :id, "--vrde", "off"]
+
+    # Misc settings
+    vb.customize ["modifyvm", :id, "--usb", "on"]
+    vb.customize ["modifyvm", :id, "--clipboard-mode", "bidirectional"]
+
+  end
+
+  #Provisioning
+  box_root = File.expand_path(File.dirname(__FILE__))
+  config.vm.provision "user_setup", type: "shell" do |s|
+    s.path = File.join(box_root, "personalize.sh")
+    s.args = [user_name, user_password]
+  end
+  config.vm.provision "user_config_root", type: "shell" do |s|
+    s.path = File.join(box_root, "docker.sh")
+    s.args = [user_name]
+  end
+  config.vm.provision "user_config", type: "shell" do |s|
+    s.path = File.join(box_root, "runas.sh")
+    s.args = [user_name, "/home/vagrant/config.sh", sharing_link, sharing_password]
+  end
+  config.vm.provision "unbase", type: "shell" do |s|
+    s.path = File.join(box_root, "unbase.sh")
+  end
+end
