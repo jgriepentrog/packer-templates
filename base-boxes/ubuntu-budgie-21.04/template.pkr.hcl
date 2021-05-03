@@ -85,7 +85,7 @@ source "virtualbox-iso" "vbox" {
   ]
   ### ISO Options ###
   iso_url = "${local.iso-release-path}/${local.iso-name}"
-  iso_checksum = "${local.iso-release-path}/SHA256SUMS"
+  iso_checksum = "file:${local.iso-release-path}/SHA256SUMS"
   ### HTTP Server Options ###
   http_directory = "base-boxes/_common/${lower(var.os)}/http"
   ### Export Options ###
